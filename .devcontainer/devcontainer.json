@@ -1,14 +1,38 @@
 {
   "name": "AetherPress v0.1 (Alpha)",
-  "image": "mcr.microsoft.com/devcontainers/javascript-node:22-bullseye",
 
+  // --- DOCKER COMPOSE INTEGRATION ---
+  // Point to your docker-compose.yml file
+  "dockerComposeFile": "docker-compose.yml",
+
+  // Specify which service in the docker-compose file is the dev container
+  "service": "app",
+
+  // The workspace folder inside the container
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+
+  // --- LIFECYCLE HOOKS ---
+  // Wait for the postCreateCommand to complete before allowing connection.
   "waitFor": "onCreateCommand",
+
+  /**/
   "updateContentCommand": "cd client && npm install && cd ../server && npm install express puppeteer && npm install --save-dev nodemon && cd ..",
 
   "postCreateCommand": "npm install -g concurrently",
   "postAttachCommand": {
     "client + server": "concurrently 'cd ./client && npm run dev' 'cd ./server && npm run dev'"
   },
+  /**/
+
+  // Install dependencies in all workspaces (server, shared, client)
+  //"updateContentCommand": "cd shared && npm install && cd ../client && npm install && cd ../server && npm install express puppeteer && npm install --save-dev nodemon && cd ..",
+
+  // Run client and server development servers concurrently after attaching.
+  /**
+  "postAttachCommand": {
+    "client + server": "bash ./start-app.sh"
+  },
+  **/
 
   // --- VS CODE CUSTOMIZATIONS ---
   "customizations": {
@@ -19,19 +43,19 @@
       "extensions": [
         "dbaeumer.vscode-eslint",
         "esbenp.prettier-vscode",
-        "svelte.svelte-vscode",
-        "bradlc.vscode-tailwindcss",
-        "prisma.prisma",
         "github.copilot",
         "github.copilot-chat",
+        "svelte.svelte-vscode",
         "gitHub.vscode-github-actions",
-        "ms-azuretools.vscode-postgresql",
         "ms-azuretools.vscode-docker",
-        "vscode-icons-team.vscode-icons",
-        "dsznajder.es7-react-js-snippets"
+        "dsznajder.es7-react-js-snippets",
+        "bradlc.vscode-tailwindcss",
+        "prisma.prisma",
+        "ms-azuretools.vscode-postgresql",
+        "vscode-icons-team.vscode-icons"
       ],
       "settings": {
-        "terminal.integrated.defaultProfile.linux": "zsh", // or "bash"
+        "terminal.integrated.defaultProfile.linux": "bash",
         "editor.formatOnSave": true,
         "editor.defaultFormatter": "esbenp.prettier-vscode",
         "[javascript]": {
@@ -52,20 +76,21 @@
   },
 
   // --- PORT FORWARDING ---
-  "forwardPorts": [5173, 3000, 5432],
+  "forwardPorts": [3000, 5173, 5432],
   "portsAttributes": {
+    "3000": { "label": "server (Express/Node.js)" },
     "5173": {
       "label": "client (Vite/Svelte)",
       "onAutoForward": "openPreview"
     },
-    "3000": { "label": "server (Express/Node.js)" },
     "5432": { "label": "database (PostgreSQL)" }
   },
 
   // --- GENERAL SETTINGS ---
   "remoteEnv": {
     "DATABASE_URL": "postgresql://${localEnv:POSTGRES_USER}:${localEnv:POSTGRES_PASSWORD}@db:5432/${localEnv:POSTGRES_DB}",
-    "GEMINI_API_KEY": "${localEnv:GEMINI_API_KEY}"
+    "GEMINI_API_KEY": "${localEnv:GEMINI_API_KEY}",
+    "GEMINI_API_URL": "${localEnv:GEMINI_API_URL}"
   },
   "remoteUser": "node",
   "hostRequirements": {
