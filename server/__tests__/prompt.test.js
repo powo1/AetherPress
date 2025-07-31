@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import request from "supertest";
+import db from "../db";
 
 const baseUrl = "http://localhost:3000";
 
@@ -7,13 +8,33 @@ describe("API: /api/prompts", () => {
   let createdId;
   let initialPromptCount;
 
-  // Verify server is running before tests
+  // Setup: Clean database and verify server
   beforeAll(async () => {
+    // First clean the database
+    await new Promise((resolve, reject) => {
+      db.serialize(() => {
+        db.run("DELETE FROM prompts", [], (err) => {
+          if (err) return reject(err);
+          db.run("DELETE FROM ai_results", [], (err) => {
+            if (err) return reject(err);
+            db.run("DELETE FROM overrides", [], (err) => {
+              if (err) return reject(err);
+              db.run("DELETE FROM pdf_exports", [], (err) => {
+                if (err) return reject(err);
+                resolve();
+              });
+            });
+          });
+        });
+      });
+    });
+
     try {
+      // Then verify server is running
       const res = await request(baseUrl).get("/health");
       expect(res.status).toBe(200);
 
-      // Get initial prompt count for cleanup validation
+      // Finally get initial count from clean database
       const prompts = await request(baseUrl).get("/api/prompts");
       initialPromptCount = prompts.body.length;
     } catch (error) {
