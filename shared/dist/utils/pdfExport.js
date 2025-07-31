@@ -1,21 +1,22 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.exportCalendarToPDF = exportCalendarToPDF;
+// Main export function & integration logic
+// drawMonthSection.ts -- Helper to render individual months + events
+// constants.ts --	Month names, layout grid, shared values
+// types.ts	-- TypeScript interfaces for CalendarEvent, Options etc.
 const pdf_lib_1 = require("pdf-lib");
+const drawMonthSection_1 = require("./drawMonthSection");
+const constants_1 = require("./constants");
 async function exportCalendarToPDF({ year, selectedMonths, events, backgroundUrl, }) {
     const pdfDoc = await pdf_lib_1.PDFDocument.create();
-    const page = pdfDoc.addPage([842, 1191]); // A3 size for a yearly calendar
+    const page = pdfDoc.addPage(pdf_lib_1.PageSizes.A3);
     const { width, height } = page.getSize();
-    // Draw background image if provided
     if (backgroundUrl) {
         const imgBytes = await fetch(backgroundUrl).then((r) => r.arrayBuffer());
-        let img;
-        if (backgroundUrl.startsWith("data:image/png")) {
-            img = await pdfDoc.embedPng(imgBytes);
-        }
-        else {
-            img = await pdfDoc.embedJpg(imgBytes);
-        }
+        const img = backgroundUrl.startsWith("data:image/png")
+            ? await pdfDoc.embedPng(imgBytes)
+            : await pdfDoc.embedJpg(imgBytes);
         page.drawImage(img, {
             x: 0,
             y: 0,
@@ -24,8 +25,8 @@ async function exportCalendarToPDF({ year, selectedMonths, events, backgroundUrl
             opacity: 0.5,
         });
     }
-    // Draw title
     const font = await pdfDoc.embedFont(pdf_lib_1.StandardFonts.HelveticaBold);
+    const dayFont = await pdfDoc.embedFont(pdf_lib_1.StandardFonts.Helvetica);
     page.drawText(`${year} Calendar`, {
         x: 40,
         y: height - 60,
@@ -33,78 +34,16 @@ async function exportCalendarToPDF({ year, selectedMonths, events, backgroundUrl
         font,
         color: (0, pdf_lib_1.rgb)(0.2, 0.2, 0.2),
     });
-    // Draw months grid (3 columns x 4 rows)
-    const months = [
-        "January",
-        "February",
-        "March",
-        "April",
-        "May",
-        "June",
-        "July",
-        "August",
-        "September",
-        "October",
-        "November",
-        "December",
-    ];
-    const gridCols = 3;
-    const gridRows = 4;
-    const cellWidth = (width - 80) / gridCols;
-    const cellHeight = (height - 120) / gridRows;
-    for (let i = 0; i < months.length; i++) {
-        if (!selectedMonths.includes(months[i]))
+    const cellWidth = (width - 80) / constants_1.GRID_COLS;
+    const cellHeight = (height - 120) / constants_1.GRID_ROWS;
+    for (let i = 0; i < 12; i++) {
+        if (!selectedMonths.includes(constants_1.MONTH_NAMES[i]))
             continue;
-        const col = i % gridCols;
-        const row = Math.floor(i / gridCols);
-        const x = 40 + col * cellWidth;
-        const y = height - 100 - row * cellHeight;
-        // Month title
-        page.drawText(months[i], {
-            x: x + 8,
-            y: y - 32,
-            size: 18,
-            font,
-            color: (0, pdf_lib_1.rgb)(0.1, 0.1, 0.1),
-        });
-        // Days grid
-        const daysInMonth = new Date(year, i + 1, 0).getDate();
-        const firstDay = new Date(year, i, 1).getDay();
-        const dayFont = await pdfDoc.embedFont(pdf_lib_1.StandardFonts.Helvetica);
-        let dayX = x + 8;
-        let dayY = y - 56;
-        let day = 1;
-        for (let week = 0; week < 6; week++) {
-            for (let d = 0; d < 7; d++) {
-                if ((week === 0 && d < firstDay) || day > daysInMonth) {
-                    dayX += 22;
-                    continue;
-                }
-                page.drawText(String(day), {
-                    x: dayX,
-                    y: dayY,
-                    size: 10,
-                    font: dayFont,
-                    color: (0, pdf_lib_1.rgb)(0.2, 0.2, 0.2),
-                });
-                // Draw events
-                const dateStr = `${year}-${String(i + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-                const dayEvents = events.filter((e) => e.date === dateStr);
-                if (dayEvents.length > 0) {
-                    page.drawText(dayEvents.map((e) => e.title).join(", "), {
-                        x: dayX,
-                        y: dayY - 10,
-                        size: 7,
-                        font: dayFont,
-                        color: (0, pdf_lib_1.rgb)(0.7, 0.4, 0.1),
-                    });
-                }
-                dayX += 22;
-                day++;
-            }
-            dayX = x + 8;
-            dayY -= 18;
-        }
+        const col = i % constants_1.GRID_COLS;
+        const row = Math.floor(i / constants_1.GRID_COLS);
+        const xOffset = 40 + col * cellWidth;
+        const yOffset = height - 100 - row * cellHeight;
+        (0, drawMonthSection_1.drawMonthSection)(page, font, dayFont, year, i, cellWidth, cellHeight, xOffset, yOffset, events);
     }
     const pdfBytes = await pdfDoc.save();
     return pdfBytes;
